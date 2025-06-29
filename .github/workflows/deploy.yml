@@ -6,7 +6,7 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: news-crawler-dev-ecr
+  ECR_REPOSITORY: crawler-dev-ecr
   LAMBDA_FUNCTION_NAME: news-dev-crawl-article
 
 jobs:
