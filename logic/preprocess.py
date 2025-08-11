@@ -1,9 +1,17 @@
+from typing import List
+
 import torch
+from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
-import openai
+
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import PydanticOutputParser
+from pydantic import BaseModel, Field
+import asyncio
 
 
-def preprocess(articles: list) -> list:
+async def preprocess(articles: list) -> list:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     embedding_model = SentenceTransformer(
         "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
@@ -11,27 +19,49 @@ def preprocess(articles: list) -> list:
     )
 
     processed = []
-    for item in articles:
-        body = item.get("body", "")
+
+    bodies = await summarize_articles(list(map(lambda x: x["body"], articles)))
+    for item, body in zip(articles, bodies):
         user_vector = embedding_model.encode(body, convert_to_numpy=True)
         item["embedded"] = user_vector.tolist()
-        item["summary"] = get_summary(body)
+        item["summary"] = body
 
         processed.append(item)
     return processed
 
-def get_summary(text: str) -> str:
-    prompt = f"다음 내용을 한 문장으로 요약해 주세요:\n\n{text}"
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "당신은 유능한 한국어 뉴스 요약가입니다."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=100,
-            temperature=0.5,
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        return ""
+
+class Summary(BaseModel):
+    text: str = Field(..., description="기사 내용을 150토큰으로 요약")
+
+
+load_dotenv()
+
+parser = PydanticOutputParser(pydantic_object=Summary)
+
+template = """
+당신은 뉴스 기사 내용을 Ko-SBERT 전처리를 위해서 핵심만 간결하게 요약하는 전문가입니다.
+주어진 기사 내용을 읽고, 다음 형식에 맞춰 150토큰으로 요약해주세요.
+{format_instructions}
+
+기사 내용:
+{body}
+"""
+
+prompt = PromptTemplate(
+    template=template,
+    input_variables=["body"],
+    partial_variables={"format_instructions": parser.get_format_instructions()},
+)
+
+llm = ChatOpenAI(model="gpt-4.1-mini", temperature=0, max_retries=2)
+a_sync_semaphore = asyncio.Semaphore(32)  # control concurrency
+
+
+async def summarize_articles(bodies: List[str]) -> List[str]:
+    async def _worker(article_body: str) -> str:
+        async with a_sync_semaphore:
+            chain = prompt | llm | parser
+            res = await chain.ainvoke({"body": article_body})
+            return res.text
+
+    return await asyncio.gather(*[_worker(b) for b in bodies])

@@ -1,4 +1,4 @@
-import os
+import asyncio
 import logging
 from typing import Any
 
@@ -9,7 +9,7 @@ from logic.preprocess import preprocess
 from logic.rss_feed_crawler import RSSFeedCrawler
 
 
-def lambda_handler(event: dict, context: Any) -> dict:
+async def lambda_handler(event: dict, context: Any) -> dict:
     try:
         # 변수 로드
         articles = event.get("data") or []
@@ -21,7 +21,7 @@ def lambda_handler(event: dict, context: Any) -> dict:
         results = crawler.crawl(filtered_articles)
 
         # 전처리
-        preprocessed_articles = preprocess(results)
+        preprocessed_articles = await preprocess(results)
 
         # 저장
         new_ids = mongodb.save_articles(preprocessed_articles)
@@ -53,4 +53,4 @@ if __name__ == '__main__':
         }]
     }
 
-    lambda_handler(test_event, None)
+    asyncio.run(lambda_handler(test_event, None))
