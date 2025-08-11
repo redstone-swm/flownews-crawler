@@ -9,7 +9,7 @@ from logic.preprocess import preprocess
 from logic.rss_feed_crawler import RSSFeedCrawler
 
 
-async def lambda_handler(event: dict, context: Any) -> dict:
+def lambda_handler(event: dict, context: Any) -> dict:
     try:
         # 변수 로드
         articles = event.get("data") or []
@@ -21,7 +21,7 @@ async def lambda_handler(event: dict, context: Any) -> dict:
         results = crawler.crawl(filtered_articles)
 
         # 전처리
-        preprocessed_articles = await preprocess(results)
+        preprocessed_articles = preprocess(results)
 
         # 저장
         inserted_ids = mongodb.save_articles(preprocessed_articles)
@@ -46,11 +46,11 @@ if __name__ == '__main__':
 
     test_event = {
         "data": [{
-            "link": "https://www.yna.co.kr/view/AKR20250811149600004",
+            "link": "https://www.yna.co.kr/view/AKR20250811149600005",
             "title": "안규백, 1호 지휘서신…본립도생, 기본이 서야 길이 생긴다",
             "summary": "안규백 의원이 1호 지휘서신을 발표하며 본립도생의 중요성을 강조했다.",
             "date": "2023-10-01T12:00:00Z"
         }]
     }
 
-    asyncio.run(lambda_handler(test_event, None))
+    lambda_handler(test_event, None)

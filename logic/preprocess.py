@@ -1,29 +1,27 @@
-from typing import List
-
 from dotenv import load_dotenv
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
-import asyncio
 
 
-async def preprocess(articles: list) -> list:
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    # embedding_model = SentenceTransformer(
-    #     "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
-    #     device=device
-    # )
+from typing import List
 
+def summarize_articles(bodies: List[str]) -> List[str]:
+    results = []
+    for article_body in bodies:
+        chain = prompt | llm | parser
+        res = chain.invoke({"body": article_body})
+        results.append(res.text)
+    return results
+
+
+def preprocess(articles: list) -> list:
     processed = []
-
-    bodies = await summarize_articles(list(map(lambda x: x["body"], articles)))
+    bodies = summarize_articles([x["body"] for x in articles])
     for item, body in zip(articles, bodies):
-        # user_vector = embedding_model.encode(body, convert_to_numpy=True)
-        # item["embedded"] = user_vector.tolist()
         item["summary"] = body
-
         processed.append(item)
     return processed
 
@@ -52,14 +50,3 @@ prompt = PromptTemplate(
 )
 
 llm = ChatOpenAI(model="gpt-4.1-mini", temperature=0, max_retries=2)
-a_sync_semaphore = asyncio.Semaphore(32)  # control concurrency
-
-
-async def summarize_articles(bodies: List[str]) -> List[str]:
-    async def _worker(article_body: str) -> str:
-        async with a_sync_semaphore:
-            chain = prompt | llm | parser
-            res = await chain.ainvoke({"body": article_body})
-            return res.text
-
-    return await asyncio.gather(*[_worker(b) for b in bodies])
