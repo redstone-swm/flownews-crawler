@@ -24,13 +24,13 @@ async def lambda_handler(event: dict, context: Any) -> dict:
         preprocessed_articles = await preprocess(results)
 
         # 저장
-        new_ids = mongodb.save_articles(preprocessed_articles)
+        inserted_ids = mongodb.save_articles(preprocessed_articles)
 
         return {
             "statusCode": 200,
             "body": {
-                "count": len(new_ids),
-                "new_ids": new_ids,
+                "count": len(inserted_ids),
+                "inserted_ids": [str(_id) for _id in inserted_ids],
             }
         }
     except Exception as e:
@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     test_event = {
         "data": [{
-            "link": "https://www.yna.co.kr/view/AKR20250811130900504",
+            "link": "https://www.yna.co.kr/view/AKR20250811149600004",
             "title": "안규백, 1호 지휘서신…본립도생, 기본이 서야 길이 생긴다",
             "summary": "안규백 의원이 1호 지휘서신을 발표하며 본립도생의 중요성을 강조했다.",
             "date": "2023-10-01T12:00:00Z"
