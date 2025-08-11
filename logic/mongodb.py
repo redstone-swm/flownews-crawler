@@ -25,18 +25,13 @@ class MongoDBConnector:
         return self.collection.find_one({"url": url}) is not None
 
     def save_articles(self, articles: list) -> list:
-        new_ids = []
-        for article in articles:
-            result = self.collection.update_one(
-                {"url": article["url"]},
-                {"$set": article},
-                upsert=True  # 없으면 생성
-            )
+        if len(articles) == 0:
+            return []
 
-            new_ids.append(result.upserted_id)
+        result = self.collection.insert_many(articles)
 
-        logging.info(f"Inserted {len(new_ids)} new articles")
-        return new_ids
+        logging.info(f"Inserted {len(result.inserted_ids)} new articles")
+        return result.inserted_ids
 
     def close(self):
         if hasattr(self, 'client'):
