@@ -2,34 +2,35 @@ import os
 import logging
 from typing import Any
 
-import boto3
 from dotenv import load_dotenv
 
-from rss_feed_crawler import RSSFeedCrawler
+from logic.mongodb import MongoDBConnector
+from logic.preprocess import preprocess
+from logic.rss_feed_crawler import RSSFeedCrawler
 
 
 def lambda_handler(event: dict, context: Any) -> dict:
     try:
         # 변수 로드
-        mongodb_uri = os.environ.get("MONGODB_URI")
-        db_name = os.environ.get("MONGODB_DB")
-        collection_name = os.environ.get("MONGODB_COL")
-        rss_feed_url = event.get("rss_feed_url")
-        sqs_queue_url = os.environ.get("SQS_QUEUE_URL")
+        articles = event.get("data") or []
+        mongodb = MongoDBConnector()
+        crawler = RSSFeedCrawler()
 
         # 크롤링
-        crawler = RSSFeedCrawler(mongodb_uri, db_name, collection_name)
-        inserted_ids = crawler.crawl_rss_feed(rss_feed_url)
-        crawler.close()
+        filtered_articles = list(filter(lambda x: not mongodb.is_duplicate(x["link"]), articles))
+        results = crawler.crawl(filtered_articles)
 
-        # SQS 이벤트 전송
-        send_messages(inserted_ids, sqs_queue_url)
+        # 전처리
+        preprocessed_articles = preprocess(results)
+
+        # 저장
+        new_ids = mongodb.save_articles(preprocessed_articles)
 
         return {
             "statusCode": 200,
             "body": {
-                "inserted_count": len(inserted_ids),
-                "inserted_ids": [str(_id) for _id in inserted_ids]
+                "count": len(new_ids),
+                "new_ids": new_ids,
             }
         }
     except Exception as e:
@@ -40,21 +41,16 @@ def lambda_handler(event: dict, context: Any) -> dict:
         }
 
 
-def send_messages(inserted_ids: list, sqs_queue_url: str):
-    if not inserted_ids or not sqs_queue_url:
-        return
-
-    region = os.environ.get('AWS_REGION', 'ap-northeast-2')
-    sqs = boto3.client('sqs', region)
-    for obj_id in inserted_ids:
-        sqs.send_message(
-            QueueUrl=sqs_queue_url,
-            MessageBody=str(obj_id)
-        )
-
-
 if __name__ == '__main__':
     load_dotenv()
 
-    test_event = {"rss_feed_url": "https://www.yna.co.kr/rss/politics.xml"}
+    test_event = {
+        "data": [{
+            "link": "https://www.yna.co.kr/view/AKR20250811130900504",
+            "title": "안규백, 1호 지휘서신…본립도생, 기본이 서야 길이 생긴다",
+            "summary": "안규백 의원이 1호 지휘서신을 발표하며 본립도생의 중요성을 강조했다.",
+            "date": "2023-10-01T12:00:00Z"
+        }]
+    }
+
     lambda_handler(test_event, None)
