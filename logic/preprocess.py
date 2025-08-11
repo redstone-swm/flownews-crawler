@@ -1,8 +1,6 @@
 from typing import List
 
-import torch
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
@@ -12,18 +10,18 @@ import asyncio
 
 
 async def preprocess(articles: list) -> list:
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    embedding_model = SentenceTransformer(
-        "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
-        device=device
-    )
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    # embedding_model = SentenceTransformer(
+    #     "snunlp/KR-SBERT-V40K-klueNLI-augSTS",
+    #     device=device
+    # )
 
     processed = []
 
     bodies = await summarize_articles(list(map(lambda x: x["body"], articles)))
     for item, body in zip(articles, bodies):
-        user_vector = embedding_model.encode(body, convert_to_numpy=True)
-        item["embedded"] = user_vector.tolist()
+        # user_vector = embedding_model.encode(body, convert_to_numpy=True)
+        # item["embedded"] = user_vector.tolist()
         item["summary"] = body
 
         processed.append(item)
