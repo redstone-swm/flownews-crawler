@@ -38,6 +38,7 @@ class RSSFeedCrawler:
                 results.append({
                     "title": parser.title,
                     "url": article["link"],
+                    "image": parser.top_image,
                     "date": parser.publish_date if parser.publish_date else article["date"],
                     "body": parser.text
                 })
