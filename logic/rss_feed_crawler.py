@@ -40,7 +40,9 @@ class RSSFeedCrawler:
                     "url": article["link"],
                     "image": parser.top_image,
                     "date": parser.publish_date if parser.publish_date else article["date"],
-                    "body": parser.text
+                    "body": parser.text,
+                    "source": article.get("source", "unknown"),
+                    "category": article.get("category", "unknown")
                 })
 
                 saved_count += 1
