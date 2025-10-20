@@ -44,7 +44,8 @@ def lambda_handler(event: dict, context: Any) -> dict:
 
 def is_badnews(article: dict) -> bool:
     body = article.get("body", "")
-    return "새로운 연합뉴스" in body
+    image = article.get("image", "")
+    return "새로운 연합뉴스" in body or "yonhapnews_logo" in image
 
 
 if __name__ == '__main__':
